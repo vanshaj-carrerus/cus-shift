@@ -1,98 +1,216 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppText } from '@/components/app-text';
+import { Brand } from '@/components/brand';
+import { Button } from '@/components/button';
+import { Icon, type IconName } from '@/components/icon';
+import { Screen } from '@/components/screen';
+import { StatusBadge } from '@/components/status-badge';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useEmployeeSession } from '@/lib/employee-session';
+import { formatIstDate, formatIstTime, istDateKey } from '@/lib/time';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+// The app's home for a signed-in employee (the root layout shows the sign-in
+// screen instead whenever nobody is signed in).
+export default function HomeScreen() {
+  const { employee, attendance, signOut, refresh } = useEmployeeSession();
+  const [signingOut, setSigningOut] = useState(false);
+
+  // Re-read today's attendance whenever this screen comes into view, so it's
+  // right after a check-in/out and after the app has been left open overnight.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  if (!employee) return null;
+
+  const checkedIn = attendance !== null;
+  const checkedOut = Boolean(attendance?.checkOutTime);
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <Screen scroll>
+      <Brand />
+
+      <View style={styles.card}>
+        <View style={styles.profile}>
+          <View style={styles.avatar}>
+            <AppText variant="label" color="accentText">
+              {initials(employee.name)}
+            </AppText>
+          </View>
+          <View style={styles.profileText}>
+            <AppText variant="body" style={styles.name} numberOfLines={1}>
+              {employee.name}
+            </AppText>
+            {employee.email ? (
+              <AppText variant="small" color="muted" numberOfLines={1}>
+                {employee.email}
+              </AppText>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            disabled={signingOut}
+            hitSlop={8}
+            onPress={async () => {
+              setSigningOut(true);
+              await signOut();
+              setSigningOut(false);
+            }}
+            style={[styles.signOut, signingOut && styles.disabled]}>
+            <Icon name="log-out" size={16} color="muted" />
+          </Pressable>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View>
+          <AppText variant="mono" color="muted" style={styles.kicker}>
+            TODAY
+          </AppText>
+          <AppText variant="heading">{formatIstDate(istDateKey())}</AppText>
+        </View>
+
+        <View style={styles.times}>
+          <TimeRow
+            icon="log-in"
+            label="Checked in"
+            time={attendance?.checkInTime}
+            badge={attendance ? <StatusBadge status={attendance.status} /> : null}
+          />
+          <TimeRow icon="log-out" label="Checked out" time={attendance?.checkOutTime} />
+        </View>
+
+        {checkedOut ? (
+          <View style={styles.done}>
+            <Icon name="circle-check" size={18} color="success" />
+            <AppText variant="body" color="success">
+              You&apos;re done for today.
+            </AppText>
+          </View>
+        ) : checkedIn ? (
+          <Button label="Check out" icon="log-out" onPress={() => router.push('/checkin/out')} />
+        ) : (
+          <Button label="Check in" icon="log-in" onPress={() => router.push('/checkin/in')} />
+        )}
+
+        <View style={styles.footnote}>
+          <Icon name="map-pin" size={15} color="muted" />
+          <AppText variant="small" color="muted" style={styles.footnoteText}>
+            Checking in and out only works from inside the office area. Your location is read when you
+            tap the button.
+          </AppText>
+        </View>
+      </View>
+    </Screen>
   );
 }
 
-export default function HomeScreen() {
+function TimeRow({
+  icon,
+  label,
+  time,
+  badge,
+}: {
+  icon: IconName;
+  label: string;
+  time?: string | null;
+  badge?: React.ReactNode;
+}) {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+    <View style={styles.timeRow}>
+      <Icon name={icon} size={16} color={time ? 'accentText' : 'muted'} />
+      <AppText variant="body" color={time ? 'foreground' : 'muted'} style={styles.timeLabel}>
+        {label}
+      </AppText>
+      {badge}
+      <AppText variant="mono" color={time ? 'foreground' : 'muted'}>
+        {time ? formatIstTime(time) : '—'}
+      </AppText>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
+  card: {
+    marginTop: Spacing.four,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.xl,
+    padding: Spacing.four,
     gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
+  profile: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    backgroundColor: 'rgba(59,130,246,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.3)',
   },
-  title: {
-    textAlign: 'center',
+  profileText: { flex: 1 },
+  name: { fontWeight: '600' },
+  signOut: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface2,
   },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
+  disabled: { opacity: 0.5 },
+  divider: { height: 1, backgroundColor: Colors.border },
+  kicker: { fontSize: 10, letterSpacing: 0.6 },
+  times: {
+    backgroundColor: Colors.surface2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
   },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 2,
+    minHeight: 52,
+  },
+  timeLabel: { flex: 1 },
+  done: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    minHeight: 48,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.successBg,
+  },
+  footnote: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing.three,
+  },
+  footnoteText: { flex: 1 },
 });

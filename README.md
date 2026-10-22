@@ -1,56 +1,69 @@
-# Welcome to your Expo app 👋
+# CUS Shift
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mobile (Expo / React Native) version of the `cus-reporting` web app: geofenced
+employee check-in plus an admin dashboard. The app is a client — it talks to the
+web app's API, which owns the MongoDB database and all the rules (geofence,
+late cutoff, duplicate check-ins, admin auth).
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
+cp .env.example .env.local   # then edit EXPO_PUBLIC_API_URL
+npx expo start
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+`EXPO_PUBLIC_API_URL` is the address of the running web app. A phone can't
+reach `localhost` — use your computer's LAN address (`http://192.168.x.x:3000`),
+`http://10.0.2.2:3000` on the Android emulator, or the deployed `https://` URL.
+Restart the app after changing it.
 
-### Other setup steps
+## Screens
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Route | What it does | Web equivalent |
+| --- | --- | --- |
+| `/` | Home, entry to check-in and admin | `/` |
+| `/login` | Employee sign-in, or first-time "Set your password". Shown on launch when nobody is signed in; has a small Admin link | — |
+| `/` | Home for a signed-in employee: today's check-in / check-out, and the button for the next step | — |
+| `/checkin/in`, `/checkin/out` | GPS fix → server geofence check → result | — |
+| `/admin/login` | Admin sign-in | `/admin/login` |
+| `/admin` | Day's attendance, stats, date picker, map links | `/admin` |
+| `/admin/employees` | Add (name + email) / edit / delete employees | `/admin/employees` |
 
-## Learn more
+Not ported: the `/qr` page (employees now open the app instead of scanning a code).
 
-To learn more about developing your project with Expo, look at the following resources:
+## Employee accounts
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Each employee has their own account, so nobody can check in or out for someone else.
 
-## Join the community
+1. **Admin** adds the employee's **name and email** (Employees tab). The account starts as *Invited*. Nothing is handed to the employee.
+2. **Employee** opens the app → *First time? Set your password*, enters their email and gets a
+   6-digit code by email. They enter the code and choose a password; the account becomes *Active*
+   and they're signed in. Having the code is what proves the email is theirs.
+3. After that they sign in with email + password (session lasts 30 days on the device). If they
+   forget it, *Forgot your password?* does the same email-code steps and signs out every other device.
+4. **Check in** and **Check out** each read the phone's location once; the server rejects
+   either one unless the employee is inside the office radius. Who is acting always comes from
+   the session — the app never sends an employee id.
 
-Join our community of developers creating universal apps.
+An employee added before accounts existed shows *No email* until the admin edits one in. Changing an
+employee's email signs them out and clears their password: they verify the new address with a fresh code.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Backend contract
+
+The app calls these `cus-reporting` endpoints (`src/lib/api.ts`):
+
+- Employee: `POST /api/auth/login`, `POST /api/auth/request-code`, `POST /api/auth/activate`, `POST /api/auth/logout`,
+  `GET /api/auth/me`, `POST /api/check-in`, `POST /api/check-out`
+- Admin: `POST /api/admin/login`, `POST /api/admin/logout`, `GET /api/attendance?date=`,
+  `GET|POST /api/employees`, `PATCH|DELETE /api/employees/:id`
+
+Sessions are the web app's httpOnly cookies (`employee_session`, `admin_session`), kept in the
+OS cookie jar.
+
+## Checks
+
+```bash
+npx tsc --noEmit
+npx eslint .
+```
