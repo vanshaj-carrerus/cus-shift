@@ -1,9 +1,10 @@
 # CUS Shift
 
 Mobile (Expo / React Native) version of the `cus-reporting` web app: geofenced
-employee check-in plus an admin dashboard. The app is a client — it talks to the
+employee check-in and check-out. The admin dashboard lives only on the
+`cus-reporting` website. The app is a client — it talks to the
 web app's API, which owns the MongoDB database and all the rules (geofence,
-late cutoff, duplicate check-ins, admin auth).
+late cutoff, duplicate check-ins).
 
 ## Setup
 
@@ -22,15 +23,27 @@ Restart the app after changing it.
 
 | Route | What it does | Web equivalent |
 | --- | --- | --- |
-| `/` | Home, entry to check-in and admin | `/` |
-| `/login` | Employee sign-in, or first-time "Set your password". Shown on launch when nobody is signed in; has a small Admin link | — |
+| `/login` | Employee sign-in, or first-time "Set your password". Shown on launch when nobody is signed in | — |
 | `/` | Home for a signed-in employee: today's check-in / check-out, and the button for the next step | — |
 | `/checkin/in`, `/checkin/out` | GPS fix → server geofence check → result | — |
-| `/admin/login` | Admin sign-in | `/admin/login` |
-| `/admin` | Day's attendance, stats, date picker, map links | `/admin` |
-| `/admin/employees` | Add (name + email) / edit / delete employees | `/admin/employees` |
 
 Not ported: the `/qr` page (employees now open the app instead of scanning a code).
+
+## Shifts, breaks and the alarm
+
+The home screen shows the employee's shift and today's fixed break times (set by the admin on the website;
+nobody starts or ends a break in the app). While checked in on a shift the app runs a background location
+task (Android foreground service, persistent "on shift" notification) that stops at check-out or shift end:
+
+- outside the office outside a break -> a notification (repeats every 5 min) and the admin's "Outside right now" panel;
+- still outside when a break ends -> the **break-over alarm** (sound + vibration, on the alarm audio stream) rings
+  every 2 minutes (admin-configurable); it can be **silenced only after the 5th ring** and stops by itself once back inside.
+
+The employee must allow location "all the time" and notifications (the home screen asks). The alarm is
+driven by location ticks (~30 s), so it can be up to a minute late. Android may stop apps on some phones:
+use the "Keep reliable" link to exempt the app from battery optimisation. None of this works in Expo Go:
+use a development build or the CI APK. Logic: `src/lib/presence-task.ts`, `src/lib/presence-logic.ts`
+(mirrors the server's `classifyPresence`), `src/app/alarm.tsx`.
 
 ## Employee accounts
 
@@ -55,10 +68,8 @@ The app calls these `cus-reporting` endpoints (`src/lib/api.ts`):
 
 - Employee: `POST /api/auth/login`, `POST /api/auth/request-code`, `POST /api/auth/activate`, `POST /api/auth/logout`,
   `GET /api/auth/me`, `POST /api/check-in`, `POST /api/check-out`
-- Admin: `POST /api/admin/login`, `POST /api/admin/logout`, `GET /api/attendance?date=`,
-  `GET|POST /api/employees`, `PATCH|DELETE /api/employees/:id`
 
-Sessions are the web app's httpOnly cookies (`employee_session`, `admin_session`), kept in the
+The session is the web app's httpOnly `employee_session` cookie, kept in the
 OS cookie jar.
 
 ## Checks

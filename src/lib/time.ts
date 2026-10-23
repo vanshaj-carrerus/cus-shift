@@ -77,3 +77,10 @@ export function formatIstDate(key: string): string {
   const d = new Date(`${key}T00:00:00Z`);
   return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
+
+/** e.g. "01:30 PM" (no seconds). */
+export function formatIstHm(value: Date | string): string {
+  const { hours, minutes } = istFields(value);
+  const h12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${pad(h12)}:${pad(minutes)} ${hours < 12 ? 'AM' : 'PM'}`;
+}

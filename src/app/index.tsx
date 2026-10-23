@@ -7,6 +7,7 @@ import { Brand } from '@/components/brand';
 import { Button } from '@/components/button';
 import { Icon, type IconName } from '@/components/icon';
 import { Screen } from '@/components/screen';
+import { ShiftCard } from '@/components/shift-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useEmployeeSession } from '@/lib/employee-session';
@@ -24,7 +25,7 @@ function initials(name: string): string {
 // The app's home for a signed-in employee (the root layout shows the sign-in
 // screen instead whenever nobody is signed in).
 export default function HomeScreen() {
-  const { employee, attendance, signOut, refresh } = useEmployeeSession();
+  const { employee, attendance, schedule, signOut, refresh } = useEmployeeSession();
   const [signingOut, setSigningOut] = useState(false);
 
   // Re-read today's attendance whenever this screen comes into view, so it's
@@ -60,6 +61,9 @@ export default function HomeScreen() {
                 {employee.email}
               </AppText>
             ) : null}
+            <AppText variant="small" color="muted" numberOfLines={1}>
+              {employee.department ?? 'No department assigned'}
+            </AppText>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -116,6 +120,8 @@ export default function HomeScreen() {
           </AppText>
         </View>
       </View>
+
+      <ShiftCard schedule={schedule} attendance={attendance} />
     </Screen>
   );
 }

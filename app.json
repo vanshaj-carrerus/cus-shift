@@ -2,17 +2,14 @@
   "expo": {
     "name": "cus-shift",
     "slug": "cus-shift",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cusshift",
     "userInterfaceStyle": "dark",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -20,9 +17,12 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
-      "package": "com.anonymous.cusshift"
+      "package": "com.anonymous.cusshift",
+      "versionCode": 2
     },
     "web": {
       "output": "server",
@@ -35,17 +35,38 @@
         {
           "backgroundColor": "#090b11",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 160
         }
       ],
-      "@react-native-community/datetimepicker",
+      "expo-status-bar",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "CUS Shift uses your location once, when you check in, to confirm you are at the office."
+          "locationWhenInUsePermission": "CUS Shift uses your location when you check in or out, to confirm you are at the office.",
+          "locationAlwaysAndWhenInUsePermission": "CUS Shift checks whether you are in the office during your shift, so it can warn you and ring a break-over alarm. It stops when you check out.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": false
         }
       ],
-      "expo-status-bar"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#3b82f6",
+          "sounds": [
+            "./assets/sounds/alarm.wav"
+          ]
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "microphonePermission": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

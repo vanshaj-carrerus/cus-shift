@@ -1,41 +1,44 @@
 // Client for the cus-reporting web backend. Endpoint behaviour mirrors the web
 // app's own screens: see cus-reporting/src/app/api/**.
 //
-// Both admins and employees sign in with an httpOnly session cookie (`admin_session`
-// / `employee_session`). React Native's networking stack keeps cookies in the OS
+// Employees sign in with an httpOnly session cookie (`employee_session`). React Native's networking stack keeps cookies in the OS
 // cookie jar, so we only need to send requests with credentials included.
 
 import { API_NOT_CONFIGURED_MESSAGE, API_URL, REQUEST_TIMEOUT_MS } from './config';
 
 export type AttendanceStatus = 'ON_TIME' | 'LATE' | 'OUT_OF_LOCATION';
 
-/** An employee as the admin sees them. */
-export interface Employee {
-  _id: string;
-  name: string;
-  /** Missing for employees added before accounts existed. */
-  email?: string | null;
-  /** Set once the employee has chosen a password; until then they're only invited. */
-  passwordSetAt?: string | null;
-}
-
 /** The signed-in employee. */
 export interface EmployeeProfile {
   id: string;
   name: string;
   email: string | null;
+  /** Name of the employee's department, or null if none is assigned yet. */
+  department: string | null;
 }
 
-export interface AttendanceRecord {
-  _id: string;
-  /** Populated employee, or null if the employee was deleted. */
-  userId: Employee | null;
-  checkInTime: string;
-  latitude: number;
-  longitude: number;
-  status: AttendanceStatus;
-  distanceFromOffice: number;
-  checkOutTime?: string | null;
+/** One fixed break window, as real instants (ISO strings). */
+export interface BreakWindow {
+  name: string;
+  start: string;
+  end: string;
+}
+
+/** The employee's shift, today's break windows, the office area and the alarm rules. */
+export interface Schedule {
+  shift: {
+    name: string;
+    /** IST "HH:mm". */
+    startTime: string;
+    endTime: string;
+    /** The concrete instance being worked (or about to be); null if none is open. */
+    start: string | null;
+    end: string | null;
+  } | null;
+  breaks: BreakWindow[];
+  office: { latitude: number; longitude: number; radius: number };
+  alarm: { intervalMinutes: number; ringsBeforeSilence: number };
+  noSignalMinutes: number;
 }
 
 /** An employee's own attendance row for a day. */
@@ -61,13 +64,8 @@ export class ApiError extends Error {
   }
 }
 
-// Registered by the admin / employee sessions so an expired session (401) signs
-// the user out everywhere, instead of each screen handling it separately.
-let onAdminUnauthorized: (() => void) | null = null;
-export function setUnauthorizedHandler(handler: (() => void) | null) {
-  onAdminUnauthorized = handler;
-}
-
+// Registered by the employee session so an expired session (401) signs the user
+// out everywhere, instead of each screen handling it separately.
 let onEmployeeUnauthorized: (() => void) | null = null;
 export function setEmployeeUnauthorizedHandler(handler: (() => void) | null) {
   onEmployeeUnauthorized = handler;
@@ -123,9 +121,6 @@ async function sessionRequest<T>(
   return res.data as T;
 }
 
-const adminRequest = <T>(method: Method, path: string, body?: unknown) =>
-  sessionRequest<T>(() => onAdminUnauthorized, 'Admin sign-in required.', method, path, body);
-
 const employeeRequest = <T>(method: Method, path: string, body?: unknown) =>
   sessionRequest<T>(() => onEmployeeUnauthorized, SIGN_IN_AGAIN, method, path, body);
 
@@ -168,7 +163,11 @@ export async function employeeLogout(): Promise<void> {
 
 /** Who is signed in on this device, and their attendance for today (null if not yet checked in). */
 export function fetchMe() {
-  return employeeRequest<{ employee: EmployeeProfile; attendance: DayAttendance | null }>(
+  return employeeRequest<{
+    employee: EmployeeProfile;
+    attendance: DayAttendance | null;
+    schedule: Schedule;
+  }>(
     'GET',
     '/api/auth/me'
   );
@@ -229,53 +228,14 @@ export async function recordAttendance(
   };
 }
 
-// -------------------------------------------------------------------- Admin
-
-export async function adminLogin(id: string, password: string): Promise<void> {
-  const res = await rawRequest('POST', '/api/admin/login', { id, password });
-  if (!res.ok) {
-    throw new ApiError(res.data?.error ?? `Sign-in failed (error ${res.status}).`, res.status);
-  }
-}
-
-export async function adminLogout(): Promise<void> {
-  try {
-    await rawRequest('POST', '/api/admin/logout');
-  } catch {
-    // Signing out locally still proceeds if the request couldn't be sent.
-  }
-}
-
-export async function fetchAttendance(dateKey: string): Promise<AttendanceRecord[]> {
-  const data = await adminRequest<{ records: AttendanceRecord[] }>(
-    'GET',
-    `/api/attendance?date=${encodeURIComponent(dateKey)}`
-  );
-  return data.records;
-}
-
-export async function fetchEmployees(): Promise<Employee[]> {
-  const data = await adminRequest<{ employees: Employee[] }>('GET', '/api/employees');
-  return data.employees;
-}
-
-export async function addEmployee(name: string, email: string): Promise<Employee> {
-  const data = await adminRequest<{ employee: Employee }>('POST', '/api/employees', { name, email });
-  return data.employee;
-}
-
 /**
- * Send only the fields that changed. Changing the email clears the employee's
- * password and sessions: they set a new one with a code emailed to the new address.
+ * Reports the phone's location while on shift. Used from the background task, so it
+ * never throws and never signs the user out: a failed report is simply skipped.
  */
-export async function updateEmployee(
-  id: string,
-  changes: { name?: string; email?: string }
-): Promise<Employee> {
-  const data = await adminRequest<{ employee: Employee }>('PATCH', `/api/employees/${id}`, changes);
-  return data.employee;
-}
-
-export async function deleteEmployee(id: string): Promise<void> {
-  await adminRequest('DELETE', `/api/employees/${id}`);
+export async function sendPresence(latitude: number, longitude: number): Promise<void> {
+  try {
+    await rawRequest('POST', '/api/presence', { latitude, longitude });
+  } catch {
+    // Offline or server down: the next report will catch up.
+  }
 }

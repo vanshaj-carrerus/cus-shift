@@ -8,7 +8,10 @@ import {
   setEmployeeUnauthorizedHandler,
   type DayAttendance,
   type EmployeeProfile,
+  type Schedule,
 } from './api';
+import { clearSchedule, saveSchedule } from './alarm-state';
+import { startTracking, stopTracking } from './tracking';
 
 type SessionStatus = 'checking' | 'signedIn' | 'signedOut';
 
@@ -18,6 +21,8 @@ interface EmployeeSession {
   employee: EmployeeProfile | null;
   /** Today's attendance row; null until the employee has checked in. */
   attendance: DayAttendance | null;
+  /** Their shift, today's break windows, the office area and alarm rules. */
+  schedule: Schedule | null;
   signIn: (email: string, password: string) => Promise<void>;
   /** Set or reset the password, proving it's you with the code emailed to `email`. */
   activate: (email: string, code: string, password: string) => Promise<void>;
@@ -34,17 +39,23 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SessionStatus>('checking');
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [attendance, setAttendance] = useState<DayAttendance | null>(null);
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
 
   const load = useCallback(async () => {
     const me = await fetchMe();
     setEmployee(me.employee);
     setAttendance(me.attendance);
+    setSchedule(me.schedule);
+    saveSchedule(me.schedule);
     setStatus('signedIn');
   }, []);
 
   const clear = useCallback(() => {
     setEmployee(null);
     setAttendance(null);
+    setSchedule(null);
+    clearSchedule();
+    stopTracking();
     setStatus('signedOut');
   }, []);
 
@@ -57,6 +68,8 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setEmployee(me.employee);
         setAttendance(me.attendance);
+        setSchedule(me.schedule);
+        saveSchedule(me.schedule);
         setStatus('signedIn');
       },
       () => !cancelled && setStatus('signedOut')
@@ -65,6 +78,17 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // Track location (for break alarms) exactly while the employee is checked in on a
+  // shift: start when they check in, stop when they check out or the shift is over.
+  const onShift = Boolean(
+    attendance && !attendance.checkOutTime && schedule?.shift?.start && schedule.shift.end
+  );
+  useEffect(() => {
+    if (status !== 'signedIn') return;
+    if (onShift) startTracking();
+    else stopTracking();
+  }, [status, onShift, attendance?._id]);
 
   // Any employee request that comes back 401 means the session ended (expired,
   // or the employee was removed).
@@ -104,7 +128,7 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
 
   return (
     <EmployeeSessionContext.Provider
-      value={{ status, employee, attendance, signIn, activate, signOut, refresh, setAttendance }}>
+      value={{ status, employee, attendance, schedule, signIn, activate, signOut, refresh, setAttendance }}>
       {children}
     </EmployeeSessionContext.Provider>
   );

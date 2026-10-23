@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type TextInputInstance } from 'react-native';
 
@@ -148,20 +147,7 @@ export default function EmployeeLoginScreen() {
 
   return (
     <Screen scroll center>
-      <View style={styles.header}>
-        <Brand />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Admin sign-in"
-          onPress={() => router.push('/admin')}
-          hitSlop={8}
-          style={styles.adminLink}>
-          <Icon name="shield-check" size={14} color="muted" />
-          <AppText variant="small" color="muted">
-            Admin
-          </AppText>
-        </Pressable>
-      </View>
+      <Brand />
       <View style={styles.card}>
         <View style={styles.iconBox}>
           <Icon
@@ -295,17 +281,6 @@ export default function EmployeeLoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  adminLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
   card: {
     marginTop: Spacing.four,
     backgroundColor: Colors.surface,

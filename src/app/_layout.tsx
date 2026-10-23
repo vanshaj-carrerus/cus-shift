@@ -4,15 +4,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { AlarmWatcher } from '@/components/alarm-watcher';
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
 import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { AdminSessionProvider } from '@/lib/admin-session';
 import { EmployeeSessionProvider, useEmployeeSession } from '@/lib/employee-session';
+import { setupNotifications } from '@/lib/notifications';
+// Defines the background location task. Must be imported at startup, not from a component.
+import '@/lib/presence-task';
 
 SplashScreen.preventAutoHideAsync();
+setupNotifications();
 
 const navTheme = {
   ...DarkTheme,
@@ -29,19 +33,17 @@ const navTheme = {
 export default function RootLayout() {
   return (
     <ThemeProvider value={navTheme}>
-      <AdminSessionProvider>
-        <EmployeeSessionProvider>
-          <StatusBar style="light" />
-          <Navigator />
-        </EmployeeSessionProvider>
-      </AdminSessionProvider>
+      <EmployeeSessionProvider>
+        <StatusBar style="light" />
+        <Navigator />
+      </EmployeeSessionProvider>
     </ThemeProvider>
   );
 }
 
 // The app opens straight into the employee flow: sign-in when nobody is signed
-// in, otherwise the home screen with check-in / check-out. The admin area is
-// separate and reachable from the sign-in screen.
+// in, otherwise the home screen with check-in / check-out. Admin lives on the
+// cus-reporting website only.
 //
 // These guards only decide what the UI shows; the real access control is the
 // server, which rejects check-in/out without a valid employee session.
@@ -57,16 +59,19 @@ function Navigator() {
   if (status === 'checking') return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
-      <Stack.Protected guard={status === 'signedIn'} redirectTo="/login">
-        <Stack.Screen name="index" />
-        <Stack.Screen name="checkin/[action]" />
-      </Stack.Protected>
-      <Stack.Protected guard={status === 'signedOut'} redirectTo="/">
-        <Stack.Screen name="login" />
-      </Stack.Protected>
-      <Stack.Screen name="admin" />
-    </Stack>
+    <>
+      {status === 'signedIn' ? <AlarmWatcher /> : null}
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
+        <Stack.Protected guard={status === 'signedIn'} redirectTo="/login">
+          <Stack.Screen name="index" />
+          <Stack.Screen name="checkin/[action]" />
+          <Stack.Screen name="alarm" options={{ gestureEnabled: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={status === 'signedOut'} redirectTo="/">
+          <Stack.Screen name="login" />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }
 

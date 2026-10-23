@@ -135,7 +135,7 @@ export default function PunchScreen() {
   const { action: actionParam } = useLocalSearchParams<{ action: string }>();
   const action: PunchAction | null = actionParam === 'in' || actionParam === 'out' ? actionParam : null;
 
-  const { setAttendance, refresh } = useEmployeeSession();
+  const { employee, setAttendance, refresh } = useEmployeeSession();
   const [view, setView] = useState<ViewState>(INITIAL_VIEW);
   const { stage, message, time, canOpenSettings } = view;
 
@@ -182,7 +182,7 @@ export default function PunchScreen() {
               Employee {WORDS[action].title}
             </AppText>
             <AppText variant="mono" color="muted" style={styles.headerSub}>
-              Geofence verification
+              {employee?.department ? `${employee.department} · ` : ''}Geofence verification
             </AppText>
           </View>
         </View>
