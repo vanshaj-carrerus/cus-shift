@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { Brand } from '@/components/brand';
@@ -25,7 +25,7 @@ function initials(name: string): string {
 // The app's home for a signed-in employee (the root layout shows the sign-in
 // screen instead whenever nobody is signed in).
 export default function HomeScreen() {
-  const { employee, attendance, schedule, signOut, refresh } = useEmployeeSession();
+  const { employee, attendance, schedule, update, signOut, refresh } = useEmployeeSession();
   const [signingOut, setSigningOut] = useState(false);
 
   // Re-read today's attendance whenever this screen comes into view, so it's
@@ -44,6 +44,25 @@ export default function HomeScreen() {
   return (
     <Screen scroll>
       <Brand />
+
+      {update?.available && update.url ? (
+        <View style={styles.update}>
+          <View style={styles.updateHead}>
+            <Icon name="triangle-alert" size={16} color="warning" />
+            <AppText variant="label" color="warning" style={styles.updateTitle}>
+              Update available{update.latestVersion ? ` (v${update.latestVersion})` : ''}
+            </AppText>
+          </View>
+          <AppText variant="small" color="muted">
+            {update.message ?? 'A newer version of this app is available. Please install it.'}
+          </AppText>
+          <Button
+            label="Install update"
+            icon="log-in"
+            onPress={() => Linking.openURL(update.url as string).catch(() => {})}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <View style={styles.profile}>
@@ -161,6 +180,17 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
   },
+  update: {
+    marginTop: Spacing.four,
+    gap: Spacing.two + 2,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.warning,
+    borderRadius: Radius.xl,
+    padding: Spacing.four,
+  },
+  updateHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  updateTitle: { flex: 1 },
   profile: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   avatar: {
     width: 44,

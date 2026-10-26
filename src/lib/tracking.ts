@@ -11,22 +11,26 @@ export interface TrackingPermissions {
   /** Location with the phone locked / app closed ("Allow all the time"). */
   background: boolean;
   notifications: boolean;
+  /** The phone's location switch is on (separate from the app's permission). */
+  servicesEnabled: boolean;
   /** Everything needed for break alarms to work. */
   ready: boolean;
 }
 
 /** Reads the current permissions without asking. */
 export async function getTrackingPermissions(): Promise<TrackingPermissions> {
-  const [fg, bg, notifications] = await Promise.all([
+  const [fg, bg, notifications, servicesEnabled] = await Promise.all([
     Location.getForegroundPermissionsAsync(),
     Location.getBackgroundPermissionsAsync(),
     notificationsAllowed(false),
+    Location.hasServicesEnabledAsync().catch(() => true),
   ]);
   return {
     foreground: fg.granted,
     background: bg.granted,
     notifications,
-    ready: fg.granted && bg.granted && notifications,
+    servicesEnabled,
+    ready: fg.granted && bg.granted && notifications && servicesEnabled,
   };
 }
 
@@ -39,6 +43,19 @@ export async function requestTrackingPermissions(): Promise<TrackingPermissions>
   if (fg.granted) await Location.requestBackgroundPermissionsAsync();
   await notificationsAllowed(true);
   return getTrackingPermissions();
+}
+
+/** Opens the phone's location switch so the employee can turn location on. */
+export async function openLocationSettings(): Promise<void> {
+  try {
+    if (Platform.OS === 'android') {
+      await Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+    } else {
+      await Linking.openSettings();
+    }
+  } catch {
+    await Linking.openSettings().catch(() => {});
+  }
 }
 
 /** Opens the system battery-optimisation list so the app isn't put to sleep mid-shift. */
@@ -75,8 +92,9 @@ export async function startTracking(): Promise<boolean> {
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: 'CUS Shift — on shift',
-        notificationBody: 'Tracking your location for break alarms. Stops when you check out.',
+        notificationTitle: 'CUS Headoffice is tracking your location',
+        notificationBody:
+          'You are on shift, so your location is being tracked. Keep location turned on. Stops when you check out.',
         notificationColor: '#3b82f6',
       },
     });

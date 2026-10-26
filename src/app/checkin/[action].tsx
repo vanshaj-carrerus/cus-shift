@@ -122,7 +122,7 @@ async function performPunch(
       // check-in/out, and the employee must be able to retry from the office.
       show(
         'out-of-location',
-        `You're ${Math.round(result.distanceFromOffice)}m from the office (allowed: ${result.allowedRadius}m). ${words.noun} rejected.`
+        `You're ${Math.round(result.distanceFromOffice)}m from the office. ${words.noun} rejected.`
       );
       break;
     case 'error':

@@ -5,7 +5,10 @@ import {
   AndroidImportance,
   AndroidNotificationVisibility,
 } from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+
+import { registerPushToken } from './api';
 
 // Channels can't be changed once created, so a new design means a new id.
 export const ALARM_CHANNEL = 'break-alarm-v1';
@@ -99,4 +102,21 @@ export async function warnOutside(): Promise<void> {
 
 export function dismissAllNotifications(): Promise<void> {
   return Notifications.dismissAllNotificationsAsync().catch(() => {});
+}
+
+/**
+ * Lets the admin's alerts reach this phone: asks for notification permission, gets the
+ * Expo push token and gives it to the server. Quietly does nothing if the permission
+ * is refused or the app has no EAS project id yet (push needs one).
+ */
+export async function registerForAdminAlerts(): Promise<void> {
+  try {
+    if (!(await notificationsAllowed(true))) return;
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) return;
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    await registerPushToken(data);
+  } catch {
+    // Push isn't available here (e.g. Expo Go or no Google services); alerts just won't arrive.
+  }
 }

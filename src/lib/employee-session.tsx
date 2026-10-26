@@ -3,14 +3,17 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import {
   employeeActivate,
   employeeLogin,
+  clearPushToken,
   employeeLogout,
   fetchMe,
   setEmployeeUnauthorizedHandler,
   type DayAttendance,
   type EmployeeProfile,
   type Schedule,
+  type UpdateNotice,
 } from './api';
 import { clearSchedule, saveSchedule } from './alarm-state';
+import { registerForAdminAlerts } from './notifications';
 import { startTracking, stopTracking } from './tracking';
 
 type SessionStatus = 'checking' | 'signedIn' | 'signedOut';
@@ -23,6 +26,8 @@ interface EmployeeSession {
   attendance: DayAttendance | null;
   /** Their shift, today's break windows, the office area and alarm rules. */
   schedule: Schedule | null;
+  /** Whether a newer app version is available (null until the first read). */
+  update: UpdateNotice | null;
   signIn: (email: string, password: string) => Promise<void>;
   /** Set or reset the password, proving it's you with the code emailed to `email`. */
   activate: (email: string, code: string, password: string) => Promise<void>;
@@ -40,12 +45,14 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [attendance, setAttendance] = useState<DayAttendance | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
+  const [update, setUpdate] = useState<UpdateNotice | null>(null);
 
   const load = useCallback(async () => {
     const me = await fetchMe();
     setEmployee(me.employee);
     setAttendance(me.attendance);
     setSchedule(me.schedule);
+    setUpdate(me.update);
     saveSchedule(me.schedule);
     setStatus('signedIn');
   }, []);
@@ -54,6 +61,7 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
     setEmployee(null);
     setAttendance(null);
     setSchedule(null);
+    setUpdate(null);
     clearSchedule();
     stopTracking();
     setStatus('signedOut');
@@ -69,6 +77,7 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
         setEmployee(me.employee);
         setAttendance(me.attendance);
         setSchedule(me.schedule);
+        setUpdate(me.update);
         saveSchedule(me.schedule);
         setStatus('signedIn');
       },
@@ -89,6 +98,11 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
     if (onShift) startTracking();
     else stopTracking();
   }, [status, onShift, attendance?._id]);
+
+  // Let the admin's alerts reach this phone while signed in.
+  useEffect(() => {
+    if (status === 'signedIn') registerForAdminAlerts();
+  }, [status]);
 
   // Any employee request that comes back 401 means the session ended (expired,
   // or the employee was removed).
@@ -114,6 +128,7 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    await clearPushToken();
     await employeeLogout();
     clear();
   }, [clear]);
@@ -128,7 +143,7 @@ export function EmployeeSessionProvider({ children }: { children: ReactNode }) {
 
   return (
     <EmployeeSessionContext.Provider
-      value={{ status, employee, attendance, schedule, signIn, activate, signOut, refresh, setAttendance }}>
+      value={{ status, employee, attendance, schedule, update, signIn, activate, signOut, refresh, setAttendance }}>
       {children}
     </EmployeeSessionContext.Provider>
   );

@@ -4,6 +4,9 @@
 // Employees sign in with an httpOnly session cookie (`employee_session`). React Native's networking stack keeps cookies in the OS
 // cookie jar, so we only need to send requests with credentials included.
 
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
 import { API_NOT_CONFIGURED_MESSAGE, API_URL, REQUEST_TIMEOUT_MS } from './config';
 
 export type AttendanceStatus = 'ON_TIME' | 'LATE' | 'OUT_OF_LOCATION';
@@ -36,9 +39,23 @@ export interface Schedule {
     end: string | null;
   } | null;
   breaks: BreakWindow[];
+  /** Every place the employee may check in from (inside any one counts). */
+  offices?: { name: string; latitude: number; longitude: number; radius: number }[];
+  /** The first of `offices`; sent for older app builds. */
   office: { latitude: number; longitude: number; radius: number };
   alarm: { intervalMinutes: number; ringsBeforeSilence: number };
   noSignalMinutes: number;
+}
+
+/** The installed app's version (from app.json), sent with every request so the admin can see it. */
+export const APP_VERSION: string = Constants.expoConfig?.version ?? '';
+
+/** Whether a newer app version is available, as decided by the server from the admin's settings. */
+export interface UpdateNotice {
+  available: boolean;
+  latestVersion: string | null;
+  url: string | null;
+  message: string | null;
 }
 
 /** An employee's own attendance row for a day. */
@@ -88,7 +105,11 @@ async function rawRequest(method: Method, path: string, body?: unknown): Promise
   try {
     const res = await fetch(`${API_URL}${path}`, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: {
+        'X-App-Version': APP_VERSION,
+        'X-App-Platform': Platform.OS,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: 'include',
       signal: controller.signal,
@@ -167,6 +188,7 @@ export function fetchMe() {
     employee: EmployeeProfile;
     attendance: DayAttendance | null;
     schedule: Schedule;
+    update: UpdateNotice;
   }>(
     'GET',
     '/api/auth/me'
@@ -237,5 +259,23 @@ export async function sendPresence(latitude: number, longitude: number): Promise
     await rawRequest('POST', '/api/presence', { latitude, longitude });
   } catch {
     // Offline or server down: the next report will catch up.
+  }
+}
+
+/** Tells the server where to deliver admin alerts for the signed-in employee. Never throws. */
+export async function registerPushToken(token: string): Promise<void> {
+  try {
+    await rawRequest('POST', '/api/push-token', { token });
+  } catch {
+    // Offline: it is registered again the next time the app opens.
+  }
+}
+
+/** Stops admin alerts reaching this phone (call before signing out). Never throws. */
+export async function clearPushToken(): Promise<void> {
+  try {
+    await rawRequest('DELETE', '/api/push-token');
+  } catch {
+    // Signing out proceeds anyway.
   }
 }

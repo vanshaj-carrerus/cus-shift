@@ -46,13 +46,10 @@ export async function processLocation(latitude: number, longitude: number, now =
     return false;
   }
 
-  const distance = haversineDistanceMeters(
-    latitude,
-    longitude,
-    schedule.office.latitude,
-    schedule.office.longitude
+  const areas = schedule.offices?.length ? schedule.offices : [schedule.office];
+  const nowInside = areas.some(
+    (o) => haversineDistanceMeters(latitude, longitude, o.latitude, o.longitude) <= o.radius
   );
-  const nowInside = distance <= schedule.office.radius;
 
   // Report first; the server keeps the admin's live view and the totals.
   await sendPresence(latitude, longitude);

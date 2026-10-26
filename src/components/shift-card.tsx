@@ -10,6 +10,7 @@ import { formatIstHm } from '@/lib/time';
 import {
   getTrackingPermissions,
   openBatterySettings,
+  openLocationSettings,
   requestTrackingPermissions,
   startTracking,
   type TrackingPermissions,
@@ -137,18 +138,29 @@ export function ShiftCard({
           <View style={styles.headRow}>
             <Icon name="triangle-alert" size={16} color="warning" />
             <AppText variant="label" color="warning">
-              Turn on break alarms
+              {permissions.servicesEnabled ? 'Turn on break alarms' : 'Turn on your location'}
             </AppText>
           </View>
+          {!permissions.servicesEnabled ? (
+            <>
+              <AppText variant="small" color="muted">
+                Your phone&apos;s location is switched off. You are on shift and CUS Headoffice tracks your
+                location, so please turn location on now.
+              </AppText>
+              <Button label="Turn on location" icon="map-pin" onPress={openLocationSettings} />
+            </>
+          ) : null}
           <AppText variant="small" color="muted">
             While you are checked in, the app checks whether you are in the office so it can warn you
-            and ring the alarm when a break ends. Your admin can see when you are away. Choose{' '}
+            and ring the alarm when a break ends. CUS Headoffice can see where you are while you are outside the office area. Choose{' '}
             <AppText variant="small" color="foreground">
               &quot;Allow all the time&quot;
             </AppText>{' '}
             for location, and allow notifications. Tracking stops when you check out.
           </AppText>
-          <Button label="Allow" icon="map-pin" onPress={allow} loading={asking} />
+          {permissions.servicesEnabled ? (
+            <Button label="Allow" icon="map-pin" onPress={allow} loading={asking} />
+          ) : null}
         </View>
       ) : null}
 
