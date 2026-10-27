@@ -32,6 +32,8 @@ const WARN_EVERY_MS = 5 * MINUTE;
 const READINGS_TO_CONFIRM_OUTSIDE = 2;
 // Ticks arrive roughly every 30 s; a ring may come this much early to stay on the 2-minute beat.
 const RING_SLACK_MS = 5000;
+// Readings less precise than this (metres) are ignored.
+const MAX_FIX_ACCURACY_M = 50;
 
 /**
  * Handles one location reading. Returns false when the shift is over and
@@ -108,6 +110,11 @@ TaskManager.defineTask(PRESENCE_TASK, async ({ data, error }) => {
   const locations = (data as { locations?: LocationObject[] } | undefined)?.locations;
   const latest = locations?.[locations.length - 1];
   if (!latest) return;
+
+  // A fix this coarse is a cell/Wi-Fi guess that can be hundreds of metres off, so it would
+  // fake "outside" and put a wrong pin on the admin's map. Wait for a real GPS reading.
+  const accuracy = latest.coords.accuracy;
+  if (accuracy !== null && accuracy > MAX_FIX_ACCURACY_M) return;
 
   const keepGoing = await processLocation(latest.coords.latitude, latest.coords.longitude);
   if (!keepGoing) {

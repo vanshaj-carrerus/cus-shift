@@ -8,6 +8,7 @@ import { AlarmWatcher } from '@/components/alarm-watcher';
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
 import { Icon } from '@/components/icon';
+import { PermissionGate } from '@/components/permission-gate';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { EmployeeSessionProvider, useEmployeeSession } from '@/lib/employee-session';
@@ -60,7 +61,21 @@ function Navigator() {
 
   return (
     <>
-      {status === 'signedIn' ? <AlarmWatcher /> : null}
+      {status === 'signedIn' ? (
+        <PermissionGate>
+          <AlarmWatcher />
+          <AppStack status={status} />
+        </PermissionGate>
+      ) : (
+        <AppStack status={status} />
+      )}
+    </>
+  );
+}
+
+function AppStack({ status }: { status: string }) {
+  return (
+    <>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
         <Stack.Protected guard={status === 'signedIn'} redirectTo="/login">
           <Stack.Screen name="index" />

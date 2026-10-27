@@ -86,7 +86,8 @@ export async function startTracking(): Promise<boolean> {
   if (await isTracking()) return true;
   try {
     await Location.startLocationUpdatesAsync(PRESENCE_TASK, {
-      accuracy: Location.Accuracy.Balanced,
+      // Balanced is Wi-Fi/cell based (100 m+ error that wanders); GPS is needed for a true position.
+      accuracy: Location.Accuracy.BestForNavigation,
       timeInterval: 30_000,
       distanceInterval: 0,
       pausesUpdatesAutomatically: false,
