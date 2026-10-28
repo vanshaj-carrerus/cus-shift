@@ -57,6 +57,9 @@ export function setupNotifications(): Promise<void> {
   return ready;
 }
 
+/** Notifications are always available in the phone app (the web build checks the browser). */
+export const notificationsSupported = () => true;
+
 /** True if the user has allowed notifications (asks once if not decided yet and `ask` is set). */
 export async function notificationsAllowed(ask = false): Promise<boolean> {
   await setupNotifications();
@@ -120,3 +123,4 @@ export async function registerForAdminAlerts(): Promise<void> {
     // Push isn't available here (e.g. Expo Go or no Google services); alerts just won't arrive.
   }
 }
+

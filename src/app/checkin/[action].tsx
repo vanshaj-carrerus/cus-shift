@@ -222,7 +222,7 @@ export default function PunchScreen() {
                     label="Open Settings"
                     icon="settings"
                     variant="secondary"
-                    onPress={() => Linking.openSettings()}
+                    onPress={() => Linking.openSettings().catch(() => {})}
                   />
                 )}
                 <Button label="Try Again" icon="rotate-ccw" onPress={retry} />

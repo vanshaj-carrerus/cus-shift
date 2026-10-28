@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { loadAlarm, type AlarmMemory } from '@/lib/alarm-state';
+import { loadAlarm, subscribeAlarm, type AlarmMemory } from '@/lib/alarm-state';
 
 /** The current break-over alarm (written by the background task), re-read every `intervalMs`. */
 export function useAlarm(intervalMs = 1000): AlarmMemory | null {
@@ -14,9 +14,11 @@ export function useAlarm(intervalMs = 1000): AlarmMemory | null {
     };
     tick();
     const timer = setInterval(tick, intervalMs);
+    const unsubscribe = subscribeAlarm(tick);
     return () => {
       live = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, [intervalMs]);
 

@@ -55,9 +55,26 @@ export const EMPTY_PRESENCE: PresenceMemory = { firstOutsideAt: null, outsideStr
 export const loadPresence = async () => (await read<PresenceMemory>(PRESENCE_KEY)) ?? { ...EMPTY_PRESENCE };
 export const savePresence = (memory: PresenceMemory) => write(PRESENCE_KEY, memory);
 
+// Screens poll the alarm, which lags up to a couple of seconds behind a change made in
+// this same app (e.g. tapping "Silence"). Listeners are told straight away instead.
+const alarmListeners = new Set<() => void>();
+export function subscribeAlarm(listener: () => void): () => void {
+  alarmListeners.add(listener);
+  return () => {
+    alarmListeners.delete(listener);
+  };
+}
+const alarmChanged = () => alarmListeners.forEach((listener) => listener());
+
 export const loadAlarm = () => read<AlarmMemory>(ALARM_KEY);
-export const saveAlarm = (alarm: AlarmMemory) => write(ALARM_KEY, alarm);
-export const clearAlarm = () => AsyncStorage.removeItem(ALARM_KEY).catch(() => {});
+export const saveAlarm = async (alarm: AlarmMemory) => {
+  await write(ALARM_KEY, alarm);
+  alarmChanged();
+};
+export const clearAlarm = async () => {
+  await AsyncStorage.removeItem(ALARM_KEY).catch(() => {});
+  alarmChanged();
+};
 
 /** Forget everything about the current shift (check-out, sign-out, shift over). */
 export async function clearShiftMemory(): Promise<void> {
@@ -65,4 +82,5 @@ export async function clearShiftMemory(): Promise<void> {
     AsyncStorage.removeItem(PRESENCE_KEY).catch(() => {}),
     AsyncStorage.removeItem(ALARM_KEY).catch(() => {}),
   ]);
+  alarmChanged();
 }

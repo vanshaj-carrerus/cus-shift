@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { useNow } from '@/hooks/use-alarm';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -152,11 +152,19 @@ export function ShiftCard({
           ) : null}
           <AppText variant="small" color="muted">
             While you are checked in, the app checks whether you are in the office so it can warn you
-            and ring the alarm when a break ends. CUS Headoffice can see where you are while you are outside the office area. Choose{' '}
-            <AppText variant="small" color="foreground">
-              &quot;Allow all the time&quot;
-            </AppText>{' '}
-            for location, and allow notifications. Tracking stops when you check out.
+            and ring the alarm when a break ends. CUS Headoffice can see where you are while you are outside the office area.{' '}
+            {Platform.OS === 'web' ? (
+              'Allow location and notifications, and keep the app open on screen while you are on shift.'
+            ) : (
+              <>
+                Choose{' '}
+                <AppText variant="small" color="foreground">
+                  &quot;Allow all the time&quot;
+                </AppText>{' '}
+                for location, and allow notifications.
+              </>
+            )}{' '}
+            Tracking stops when you check out.
           </AppText>
           {permissions.servicesEnabled ? (
             <Button label="Allow" icon="map-pin" onPress={allow} loading={asking} />
@@ -168,15 +176,19 @@ export function ShiftCard({
         <View style={styles.tracking}>
           <Icon name="radar" size={14} color="success" />
           <AppText variant="small" color="muted" style={styles.grow}>
-            Break alarms are on.
+            {Platform.OS === 'web'
+              ? 'Break alarms are on while this app is open. Keep it open on screen.'
+              : 'Break alarms are on.'}
           </AppText>
-          <AppText
-            variant="small"
-            color="accentText"
-            onPress={openBatterySettings}
-            accessibilityRole="button">
-            Keep reliable
-          </AppText>
+          {Platform.OS === 'web' ? null : (
+            <AppText
+              variant="small"
+              color="accentText"
+              onPress={openBatterySettings}
+              accessibilityRole="button">
+              Keep reliable
+            </AppText>
+          )}
         </View>
       ) : null}
     </View>

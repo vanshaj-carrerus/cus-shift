@@ -13,6 +13,8 @@ export interface TrackingPermissions {
   notifications: boolean;
   /** The phone's location switch is on (separate from the app's permission). */
   servicesEnabled: boolean;
+  /** Web only: an iPhone browser tab that must be added to the Home Screen first. */
+  needsInstall?: boolean;
   /** Everything needed for break alarms to work. */
   ready: boolean;
 }
@@ -113,3 +115,4 @@ export async function stopTracking(): Promise<void> {
   await clearShiftMemory();
   await dismissAllNotifications();
 }
+

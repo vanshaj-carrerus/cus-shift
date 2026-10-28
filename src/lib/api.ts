@@ -7,7 +7,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import { API_NOT_CONFIGURED_MESSAGE, API_URL, REQUEST_TIMEOUT_MS } from './config';
+import { API_CONFIGURED, API_NOT_CONFIGURED_MESSAGE, API_URL, REQUEST_TIMEOUT_MS } from './config';
 
 export type AttendanceStatus = 'ON_TIME' | 'LATE' | 'OUT_OF_LOCATION';
 
@@ -98,7 +98,7 @@ interface RawResponse {
 }
 
 async function rawRequest(method: Method, path: string, body?: unknown): Promise<RawResponse> {
-  if (!API_URL) throw new ApiError(API_NOT_CONFIGURED_MESSAGE);
+  if (!API_CONFIGURED) throw new ApiError(API_NOT_CONFIGURED_MESSAGE);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -262,10 +262,13 @@ export async function sendPresence(latitude: number, longitude: number): Promise
   }
 }
 
-/** Tells the server where to deliver admin alerts for the signed-in employee. Never throws. */
-export async function registerPushToken(token: string): Promise<void> {
+/**
+ * Tells the server where to deliver admin alerts for the signed-in employee. Never throws.
+ * Takes an Expo push token (Android) or a Web Push subscription (the web app).
+ */
+export async function registerPushToken(target: string | { subscription: unknown }): Promise<void> {
   try {
-    await rawRequest('POST', '/api/push-token', { token });
+    await rawRequest('POST', '/api/push-token', typeof target === 'string' ? { token: target } : target);
   } catch {
     // Offline: it is registered again the next time the app opens.
   }
@@ -279,3 +282,4 @@ export async function clearPushToken(): Promise<void> {
     // Signing out proceeds anyway.
   }
 }
+

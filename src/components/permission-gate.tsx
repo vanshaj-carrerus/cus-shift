@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AppState, Linking, StyleSheet, View } from 'react-native';
+import { AppState, Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import {
@@ -42,6 +42,7 @@ export function PermissionGate({ children }: { children: ReactNode }) {
   }
 
   const blocked = permissions !== null && !permissions.ready;
+  const web = Platform.OS === 'web';
 
   return (
     <View style={styles.fill}>
@@ -62,27 +63,45 @@ export function PermissionGate({ children }: { children: ReactNode }) {
               </AppText>
 
               <View style={styles.list}>
-                <Row ok={permissions.servicesEnabled} label="Phone location switched on" />
+                {web ? (
+                  <Row ok={!permissions.needsInstall} label="Added to the Home Screen" />
+                ) : (
+                  <Row ok={permissions.servicesEnabled} label="Phone location switched on" />
+                )}
                 <Row ok={permissions.foreground} label="Location access" />
-                <Row ok={permissions.background} label={'Location: "Allow all the time"'} />
+                {web ? null : (
+                  <Row ok={permissions.background} label={'Location: "Allow all the time"'} />
+                )}
                 <Row ok={permissions.notifications} label="Notifications" />
               </View>
 
-              {!permissions.servicesEnabled ? (
-                <Button label="Turn on location" icon="map-pin" onPress={openLocationSettings} />
+              {web && permissions.needsInstall ? (
+                <AppText variant="small" color="muted" style={styles.center}>
+                  On iPhone this app has to be installed first. In Safari, tap the Share button, then
+                  &quot;Add to Home Screen&quot;, then open CUS Shift from its new icon on your Home Screen.
+                </AppText>
               ) : (
-                <Button label="Allow permissions" icon="map-pin" onPress={allow} loading={asking} />
+                <>
+                  {!permissions.servicesEnabled ? (
+                    <Button label="Turn on location" icon="map-pin" onPress={openLocationSettings} />
+                  ) : (
+                    <Button label="Allow permissions" icon="map-pin" onPress={allow} loading={asking} />
+                  )}
+                  {web ? null : (
+                    <Button
+                      label="Open app settings"
+                      icon="settings"
+                      variant="secondary"
+                      onPress={() => Linking.openSettings().catch(() => {})}
+                    />
+                  )}
+                  <AppText variant="small" color="muted" style={styles.center}>
+                    {web
+                      ? 'If a prompt doesn’t appear, open the Settings app, then CUS Shift, and allow Location and Notifications. Keep the app open while you are on shift: location is only read while it is open.'
+                      : 'If a prompt doesn’t appear, open app settings, then Permissions, and choose “Allow all the time” for Location and allow Notifications.'}
+                  </AppText>
+                </>
               )}
-              <Button
-                label="Open app settings"
-                icon="settings"
-                variant="secondary"
-                onPress={() => Linking.openSettings().catch(() => {})}
-              />
-              <AppText variant="small" color="muted" style={styles.center}>
-                If a prompt doesn&apos;t appear, open app settings, then Permissions, and choose
-                &quot;Allow all the time&quot; for Location and allow Notifications.
-              </AppText>
             </View>
           </Screen>
         </View>

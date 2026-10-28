@@ -12,12 +12,14 @@ import { PermissionGate } from '@/components/permission-gate';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { EmployeeSessionProvider, useEmployeeSession } from '@/lib/employee-session';
+import { prepareAlarmSound } from '@/lib/alarm-sound';
 import { setupNotifications } from '@/lib/notifications';
 // Defines the background location task. Must be imported at startup, not from a component.
 import '@/lib/presence-task';
 
 SplashScreen.preventAutoHideAsync();
 setupNotifications();
+prepareAlarmSound();
 
 const navTheme = {
   ...DarkTheme,
@@ -129,3 +131,4 @@ const styles = StyleSheet.create({
   },
   center: { textAlign: 'center' },
 });
+

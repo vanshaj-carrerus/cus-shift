@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { Brand } from '@/components/brand';
@@ -45,7 +45,8 @@ export default function HomeScreen() {
     <Screen scroll>
       <Brand />
 
-      {update?.available && update.url ? (
+      {/* The installed web app always loads the latest version, so it never shows an APK update. */}
+      {Platform.OS !== 'web' && update?.available && update.url ? (
         <View style={styles.update}>
           <View style={styles.updateHead}>
             <Icon name="triangle-alert" size={16} color="warning" />

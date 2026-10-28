@@ -1,7 +1,6 @@
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, Vibration, View } from 'react-native';
+import { Platform, StyleSheet, Vibration, View } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
@@ -10,11 +9,14 @@ import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAlarm } from '@/hooks/use-alarm';
 import { saveAlarm } from '@/lib/alarm-state';
+import { startAlarmSound } from '@/lib/alarm-sound';
 import { useEmployeeSession } from '@/lib/employee-session';
 import { ALARM_VIBRATION, dismissAllNotifications } from '@/lib/notifications';
 
 function leave() {
-  if (router.canGoBack()) router.back();
+  // Browser history can't be trusted to hold the screen we came from (a notification tap or a
+  // reload opens /alarm directly), so the web build always goes home.
+  if (Platform.OS !== 'web' && router.canGoBack()) router.back();
   else router.replace('/');
 }
 
@@ -34,15 +36,11 @@ export default function AlarmScreen() {
   // Loud looping sound and vibration for as long as the alarm is active.
   useEffect(() => {
     if (!ringing) return;
-    const player = createAudioPlayer(require('@/assets/sounds/alarm.wav'));
-    player.loop = true;
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-    player.play();
+    const stopSound = startAlarmSound();
     Vibration.vibrate(ALARM_VIBRATION, true);
     return () => {
       Vibration.cancel();
-      player.pause();
-      player.remove();
+      stopSound();
     };
   }, [ringing]);
 
@@ -132,3 +130,4 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   rings: { alignItems: 'center', gap: 2 },
 });
+

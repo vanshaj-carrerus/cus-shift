@@ -78,3 +78,20 @@ OS cookie jar.
 npx tsc --noEmit
 npx eslint .
 ```
+
+## iPhone / web app (PWA)
+
+iPhones can't install an APK, so the same code also builds as an installable web app. Free, no Apple account, no expiry, and every deploy updates everyone instantly.
+
+**Deploy (Vercel, free):** import this folder as a project. `vercel.json` already sets the build (`expo export --platform web`) and forwards `/api/*` to the backend (`https://cus-reporting.vercel.app`; change it there if the backend moves). Optional env var on the Vercel project: `EXPO_PUBLIC_VAPID_PUBLIC_KEY` (see below).
+
+**Install on iPhone:** open the Vercel link in **Safari**, Share, **Add to Home Screen**, then open CUS Shift from the new icon. iOS 16.4 or newer.
+
+**Try it locally:** `npm run build:web`, then `BACKEND_URL=http://localhost:3000 npm run serve:web` and open http://localhost:8080.
+
+**Admin alerts to iPhones:** run `npx web-push generate-vapid-keys` once. On the cus-reporting deployment set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`; on the web app's Vercel project set `EXPO_PUBLIC_VAPID_PUBLIC_KEY` to the same public key.
+
+**Differences from the Android app**
+- Location is only read while the app is open and the screen is on (a screen wake lock is held while on shift). iOS does not let any web app track in the background, so break alarms and "outside" warnings don't fire with the app closed or the phone locked. The admin sees the employee as "no signal" in that case.
+- Alarm sound plays only while the app is open (and after the person has tapped something once). A locked-phone alarm notification uses the iPhone's normal notification sound and vibration, not the custom loud alarm sound.
+- No "Allow all the time" location step or battery settings (not applicable). The APK "update available" card is hidden: the web app always runs the latest version.
